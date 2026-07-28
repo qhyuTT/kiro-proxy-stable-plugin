@@ -81,10 +81,21 @@ git clone https://github.com/qhyuTT/kiro-proxy-stable.git
 claude --plugin-dir /path/to/kiro-proxy-stable
 ```
 
-### 依赖
+### 依赖 / 环境要求
 
-- `sh`（macOS / Linux 自带）
-- 钩子通过 `scripts/emit-rules.sh` 拼装 JSON 信封，无需 Python
+钩子脚本 `scripts/emit-rules.sh` 使用 POSIX `sh + sed + awk` 拼装 JSON 信封，不依赖 Python、Node、jq。
+
+**macOS**：系统自带 `sh` / `sed` / `awk`，无需额外安装。
+
+**Linux**：绝大多数发行版自带；极简镜像（Alpine 等）如果缺 `awk`，安装 `busybox` 或 `gawk` 即可。
+
+**Windows**：原生 `cmd` / PowerShell **没有 `sh`**，钩子无法执行。任选一种方案：
+
+- **推荐：WSL2**。在 WSL 里安装 Node 与 Claude Code，然后在 WSL 终端里启动 `claude`，钩子直接可用。
+- **Git for Windows**（Git Bash）：安装后自带 `sh` / `sed` / `awk`。需要在 Git Bash 终端里启动 `claude`，让 Claude Code 用 Git Bash 的 `sh` 执行钩子；如果你在 PowerShell 里启动 `claude`，即使装了 Git Bash 也可能找不到 `sh`。
+- **MSYS2 / Cygwin**：同理，需保证启动 `claude` 时的终端能解析 `sh`。
+
+验证方法：任一终端里执行 `sh -c 'echo ok'`，能输出 `ok` 就说明钩子能跑。
 
 ## 不使用 Kiro 反代时
 
