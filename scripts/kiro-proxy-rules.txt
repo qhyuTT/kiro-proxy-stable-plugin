@@ -1,0 +1,20 @@
+[Kiro proxy rules v1 — session/subagent]
+Upstream is Kiro reverse proxy, not native Anthropic. Long turns, huge Write payloads, and dense serial tool calls raise disconnect risk and inflate first-token latency.
+
+Tools:
+- ONLY Claude Code native tools: Read, Write, Edit, Bash, Glob, Grep. Never Kiro-native schemas (path/oldStr/newStr as primary fields).
+- Prefer Edit over Write. Keep each Write/Edit under ~8-12k new chars; split larger changes into sequential Edits.
+
+Speed (why interrupt+继续 feels faster — bake it into normal turns):
+- One-line intent, then tools. No long preamble/plan text before the first tool call.
+- Run INDEPENDENT tool calls IN PARALLEL (same message). Multiple Reads/Greps that don't depend on each other = one batch, one proxy round-trip. Never serialize independent calls.
+- Do not Read a file whose content is already visible in this turn.
+- Aim for 4-6 tool calls per turn, then a short status line, then next turn. Ending the turn is cheap; a mega-turn is expensive.
+
+Resume:
+- End each batch with a one-line anchor: `[resume] done=<what> next=<what>`.
+- On interrupt / 继续 / continue: resume from the last anchor. Do NOT restart from zero. Do NOT re-plan.
+- Empty/partial tool result: retry the same native tool once; after 2 failures drop to 1 tool per turn until stable.
+
+For long verifiable work: `/goal <measurable condition>` (auto-continues across small turns).
+Full playbook: `/kiro-proxy-stable`.

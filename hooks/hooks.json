@@ -1,0 +1,40 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/emit-rules.sh\" SessionStart",
+            "timeout": 5,
+            "statusMessage": "loading kiro-proxy rules"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/emit-rules.sh\" UserPromptSubmit",
+            "timeout": 5,
+            "statusMessage": "loading kiro-proxy rules"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/emit-rules.sh\" SubagentStart",
+            "timeout": 5,
+            "statusMessage": "loading kiro-proxy rules"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,162 @@
+# kiro-proxy-stable
+
+面向 **Kiro 反向代理** 的 Claude Code **插件**。当 Claude Code 通过 Kiro 反代访问 Anthropic 时，长回合、大 Write 载荷、密集串行工具调用容易触发中途断流和 `tool_use` 不完整。本插件把「小批次 + 原生工具 + 断点续跑」的行为规范注入到每个会话与子代理，降低断连率与断连后的进度损失。
+
+## 项目组成
+
+| 组成 | 位置 | 作用 |
+|------|------|------|
+| 插件元信息 | `.claude-plugin/plugin.json` | 声明插件名、版本、作者、仓库 |
+| Marketplace 清单 | `.claude-plugin/marketplace.json` | 让 `/plugin marketplace add` 能识别并列出本插件 |
+| Hooks 配置 | `hooks/hooks.json` | 注册 `SessionStart` / `UserPromptSubmit` / `SubagentStart` 三个钩子 |
+| 规则注入脚本 | `scripts/emit-rules.sh` | 钩子触发时把规则以 `additionalContext` 形式喂给模型 |
+| 规则正文 | `scripts/kiro-proxy-rules.txt` | Kiro 反代下的工具、批次、续跑约束（v1 标记） |
+| 完整 Skill | `skills/kiro-proxy-stable/SKILL.md` | 预防 + 恢复 + 子代理交接的完整手册，通过 `/kiro-proxy-stable` 触发 |
+| 子代理 | `agents/kiro-proxy-worker.md` | 反代友好的实现型子代理，自带原生工具白名单 |
+
+### 各部分具体做什么
+
+- **SessionStart 钩子**：会话开始时把简版规则注入一次，整场会话有效，避免每回合重复发送、节省 token。
+- **SubagentStart 钩子**：子代理默认是空上下文，此钩子确保子代理也拿到同一份规则。
+- **`kiro-proxy-stable` Skill**：完整版手册。断连、`继续`、`任务中断`、`tool call failed` 等关键词会自动召回；也可以手动 `/kiro-proxy-stable` 触发。
+- **`kiro-proxy-worker` 子代理**：主代理把实现类任务拆给它时，它已经带好原生工具白名单（`Read/Write/Edit/Bash/Glob/Grep/Skill`）和小批次工作习惯。
+
+## 为什么有用
+
+Kiro 反代把 Anthropic 的流式协议和工具协议翻译成 Kiro 自己的格式，失败集中在：
+
+- 单回合过长
+- 密集**串行**工具调用
+- 单次 Write 过大 / `tool_use` 分片不全
+
+Claude Code 的 **`/goal`** 在同一条代理下更稳，因为它把工作切成很多短回合、每回合结束后自动续跑。本插件把同样的形状变成日常回合的默认行为：小批次、只用原生工具、以「resume 锚点」续跑，并在任务有可验证完成条件时推荐 `/goal`。
+
+**取舍**：用速度换稳定。回合更短更多，长任务墙钟时间可能变长；换来的是断连率与每次断连的损失下降。如果你到 Kiro 的网络本身很稳，或者你用的是原生 Anthropic，就不需要装。
+
+## 提速原理（为什么 `继续` 有时反而更快）
+
+插件把「打断 + 继续更快」这个现象变成正常回合的模式：
+
+- **无前置铺垫**。在反代上，第一次工具调用前的长段「让我先规划……」是最慢的部分，规则里明确禁止。
+- **独立工具调用并行**。多个互不依赖的 Read / Grep 放进同一批，一次代理往返完成，绝不串行。
+- **Resume 锚点**。每批结尾输出 `[resume] done=... next=...`，`Esc` + `继续` 能直接跳到下一步，不用重新规划。
+- **短回合 > 巨型回合**。新回合命中 prompt cache 更干净；老化连接上的巨型回合越往后越慢。
+
+其他可选加速手段：
+
+- 长任务且有可验证条件 → `/goal <可验证条件>`
+- 使用 Opus 5 / 4.8 / 4.7 时 → `/fast` 加快输出速率
+
+## 安装
+
+### 方式一：直接把 GitHub 地址发给 Claude Code（推荐）
+
+在 Claude Code 里依次输入：
+
+```text
+/plugin marketplace add qhyuTT/kiro-proxy-stable
+/plugin install kiro-proxy-stable@kiro-proxy-stable
+/reload-plugins
+```
+
+第一步会把本仓库注册为一个 marketplace；第二步安装名为 `kiro-proxy-stable` 的插件；第三步重载让钩子和 skill 生效。
+
+### 方式二：命令行本地加载（只在当前会话生效）
+
+先把仓库克隆到本地，再启动 Claude Code 时指定插件目录：
+
+```bash
+git clone https://github.com/qhyuTT/kiro-proxy-stable.git
+claude --plugin-dir /path/to/kiro-proxy-stable
+```
+
+### 依赖
+
+- `sh`（macOS / Linux 自带）
+- 钩子通过 `scripts/emit-rules.sh` 拼装 JSON 信封，无需 Python
+
+## 不使用 Kiro 反代时
+
+装了但暂时不想让它生效：
+
+```text
+/plugin disable kiro-proxy-stable@kiro-proxy-stable
+```
+
+想要彻底移除：
+
+```text
+/plugin uninstall kiro-proxy-stable@kiro-proxy-stable
+```
+
+重新启用：
+
+```text
+/plugin enable kiro-proxy-stable@kiro-proxy-stable
+```
+
+## 使用建议
+
+1. **日常对话**：规则会在会话开始注入一次，之后整场会话都遵守，不需要额外操作。
+2. **长任务且有可验证的完成条件**：
+
+   ```text
+   /goal 单测通过且 lint 无告警
+   ```
+
+3. **中途断连 / 想继续**：直接说 `继续`，或手动调出完整手册：
+
+   ```text
+   /kiro-proxy-stable
+   ```
+
+4. **拆分实现任务**：让主代理把实现型子任务交给 **kiro-proxy-worker** 子代理，它自带反代规则和 skill 引用。
+
+## 验证插件已经生效
+
+不依赖模型主观判断的方式：
+
+```bash
+claude --debug --plugin-dir /path/to/kiro-proxy-stable 2>&1 | grep -i "SessionStart"
+```
+
+应能看到钩子触发并打印 `hookSpecificOutput` / `additionalContext`。
+
+也可以直接问模型：让它返回 Kiro 规则的第一行。应该看到：
+
+```text
+[Kiro proxy rules v1 — session/subagent]
+```
+
+在子代理里做同样的检查可以验证 `SubagentStart` 是否也注入成功。
+
+## 调优
+
+如果你所在的反代表现和默认经验值不太一样，改 `scripts/kiro-proxy-rules.txt` 即可：
+
+- 「Write/Edit 单次 8–12k 字符上限」「每回合 4–6 次工具调用」是经验起点。
+- 仍有断连 → 把两个上限都往下调。
+- 从来没断连 → 要么其实不需要本插件，要么可以把上限往上调。
+
+## 目录结构
+
+```text
+.claude-plugin/plugin.json
+.claude-plugin/marketplace.json
+hooks/hooks.json
+scripts/emit-rules.sh
+scripts/kiro-proxy-rules.txt
+skills/kiro-proxy-stable/
+agents/kiro-proxy-worker.md
+README.md
+LICENSE
+```
+
+## Changelog
+
+- **1.1.0** — 去掉 `UserPromptSubmit` 注入（规则只在 `SessionStart` 通过 `additionalContext` 注入一次，节省每回合 token）；加上 `v1` 标记方便客观验证；规则要求无前置铺垫 + 独立调用并行 + resume 锚点；`kiro-proxy-worker` 通过 frontmatter `tools:` 拿到原生工具白名单。
+- **1.0.0** — 首次发布。
+
+## License
+
+MIT
