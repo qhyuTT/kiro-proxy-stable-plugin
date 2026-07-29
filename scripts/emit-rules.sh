@@ -1,6 +1,6 @@
 #!/bin/sh
 # Emit the Kiro proxy rules as a Claude Code hook JSON payload.
-# POSIX sh + sed + awk only — no jq, no python, no bash-isms.
+# POSIX sh + sed + awk + tr only — no jq, no python, no bash-isms.
 #
 # Usage: emit-rules.sh <HookEventName>
 
@@ -10,9 +10,12 @@ rules="$root/scripts/kiro-proxy-rules.txt"
 
 [ -r "$rules" ] || exit 0
 
-# JSON-escape: backslash first, then double quote, then fold newlines into \n.
+# Strip CR first (a CRLF checkout would otherwise emit raw \r into the JSON
+# string, which strict parsers reject), then JSON-escape: backslash, double
+# quote, tab. Finally fold newlines into \n.
 body=$(
-  sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/	/\\t/g' "$rules" |
+  tr -d '\r' < "$rules" |
+    sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/	/\\t/g' |
     awk 'BEGIN{ORS=""} {print (NR>1 ? "\\n" : "") $0}'
 )
 

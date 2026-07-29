@@ -9,7 +9,7 @@
       "name": "kiro-proxy-stable",
       "source": "./",
       "description": "Stabilize Claude Code behind Kiro reverse proxy. Per-session rules + recovery skill + proxy-safe worker agent. Disable when not using proxy.",
-      "version": "1.1.1",
+      "version": "1.1.2",
       "author": {
         "name": "qhyuTT"
       }

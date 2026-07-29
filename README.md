@@ -98,19 +98,22 @@ claude --plugin-dir /path/to/kiro-proxy-stable-plugin
 
 ### 依赖 / 环境要求
 
-钩子脚本 `scripts/emit-rules.sh` 使用 POSIX `sh + sed + awk` 拼装 JSON 信封，不依赖 Python、Node、jq。
+钩子脚本 `scripts/emit-rules.sh` 使用 POSIX `sh + sed + awk + tr` 拼装 JSON 信封，不依赖 Python、Node、jq。
 
-**macOS**：系统自带 `sh` / `sed` / `awk`，无需额外安装。
+刻意不用 Node：Claude Code 现在主推原生二进制安装，安装目录里**不带** Node 运行时，机器上有没有 `node` 全看用户自己装过没有。`sh` 在 macOS / Linux 上是系统自带的，比 Node 更可靠。
+
+**macOS**：系统自带 `sh` / `sed` / `awk` / `tr`，无需额外安装。
 
 **Linux**：绝大多数发行版自带；极简镜像（Alpine 等）如果缺 `awk`，安装 `busybox` 或 `gawk` 即可。
 
-**Windows**：原生 `cmd` / PowerShell **没有 `sh`**，钩子无法执行。任选一种方案：
+**Windows**：**钩子在 Windows 上不工作，请用 WSL2。**
 
-- **推荐：WSL2**。在 WSL 里安装 Node 与 Claude Code，然后在 WSL 终端里启动 `claude`，钩子直接可用。
-- **Git for Windows**（Git Bash）：安装后自带 `sh` / `sed` / `awk`。需要在 Git Bash 终端里启动 `claude`，让 Claude Code 用 Git Bash 的 `sh` 执行钩子；如果你在 PowerShell 里启动 `claude`，即使装了 Git Bash 也可能找不到 `sh`。
-- **MSYS2 / Cygwin**：同理，需保证启动 `claude` 时的终端能解析 `sh`。
+原生 `cmd` / PowerShell 里没有 `sh`，而且 `hooks.json` 里的 `${CLAUDE_PLUGIN_ROOT}` 是 POSIX 展开语法，`cmd` 也不认，两处都会失败。
 
-验证方法：任一终端里执行 `sh -c 'echo ok'`，能输出 `ok` 就说明钩子能跑。
+- **WSL2（唯一推荐）**：在 WSL 里安装 Claude Code，在 WSL 终端里启动 `claude`，钩子按 Linux 方式工作。
+- **Git Bash / MSYS2 / Cygwin**：这些环境**提供**了 `sh`，但 Claude Code 在 Windows 上是否会用它们来执行钩子，取决于它如何选择 shell，本项目未在 Windows 上实测过，不保证可用。
+
+验证方法：在你实际启动 `claude` 的那个终端里执行 `sh -c 'echo ok'`，能输出 `ok` 是必要条件，但在 Windows 上不是充分条件。
 
 ## 更新到新版本
 
@@ -208,6 +211,7 @@ LICENSE
 
 ## Changelog
 
+- **1.1.2** — 修复 CRLF 检出导致钩子输出非法 JSON、规则静默不生效的问题（`emit-rules.sh` 先 `tr -d '\r'`）；新增 `.gitattributes` 把脚本与规则文件锁为 LF；订正 Windows 一节，说明 `cmd.exe` 下钩子不工作、Git Bash 方案未经验证。
 - **1.1.1** — 真正删掉 `UserPromptSubmit` 钩子（1.1.0 的 changelog 声称去掉了，实际 `hooks.json` 里还在，规则每回合都在重复注入）；修正 README 与 `plugin.json` 里指向不存在仓库 `kiro-proxy-stable` 的地址，安装命令改用完整 HTTPS 避免走 SSH。
 - **1.1.0** — 规则改为通过 `SessionStart` 的 `additionalContext` 注入；加上 `v1` 标记方便客观验证；规则要求无前置铺垫 + 独立调用并行 + resume 锚点；`kiro-proxy-worker` 通过 frontmatter `tools:` 拿到原生工具白名单。
 - **1.0.0** — 首次发布。

@@ -1,0 +1,7 @@
+# Hook scripts and the rules payload must stay LF on every platform.
+# A CRLF checkout would make emit-rules.sh emit raw CR control characters,
+# producing invalid JSON that silently fails to inject the rules.
+*.sh text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.md text eol=lf
