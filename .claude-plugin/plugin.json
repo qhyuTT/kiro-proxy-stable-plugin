@@ -1,12 +1,12 @@
 {
   "name": "kiro-proxy-stable",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Stabilize Claude Code behind Kiro reverse proxy. Injects per-session rules, provides recovery skill, and encourages parallel independent tool calls. Disable or uninstall when not using Kiro proxy.",
   "author": {
     "name": "qhyuTT"
   },
-  "homepage": "https://github.com/qhyuTT/kiro-proxy-stable",
-  "repository": "https://github.com/qhyuTT/kiro-proxy-stable",
+  "homepage": "https://github.com/qhyuTT/kiro-proxy-stable-plugin",
+  "repository": "https://github.com/qhyuTT/kiro-proxy-stable-plugin",
   "license": "MIT",
   "keywords": ["kiro", "proxy", "claude-code", "stability", "tool-calls"]
 }

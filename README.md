@@ -8,7 +8,7 @@
 |------|------|------|
 | 插件元信息 | `.claude-plugin/plugin.json` | 声明插件名、版本、作者、仓库 |
 | Marketplace 清单 | `.claude-plugin/marketplace.json` | 让 `/plugin marketplace add` 能识别并列出本插件 |
-| Hooks 配置 | `hooks/hooks.json` | 注册 `SessionStart` / `UserPromptSubmit` / `SubagentStart` 三个钩子 |
+| Hooks 配置 | `hooks/hooks.json` | 注册 `SessionStart` / `SubagentStart` 两个钩子 |
 | 规则注入脚本 | `scripts/emit-rules.sh` | 钩子触发时把规则以 `additionalContext` 形式喂给模型 |
 | 规则正文 | `scripts/kiro-proxy-rules.txt` | Kiro 反代下的工具、批次、续跑约束（v1 标记） |
 | 完整 Skill | `skills/kiro-proxy-stable/SKILL.md` | 预防 + 恢复 + 子代理交接的完整手册，通过 `/kiro-proxy-stable` 触发 |
@@ -65,20 +65,25 @@ Claude Code 的 **`/goal`** 在同一条代理下更稳，因为它把工作切�
 在 Claude Code 里依次输入：
 
 ```text
-/plugin marketplace add qhyuTT/kiro-proxy-stable
+/plugin marketplace add https://github.com/qhyuTT/kiro-proxy-stable-plugin.git
 /plugin install kiro-proxy-stable@kiro-proxy-stable
 /reload-plugins
 ```
 
 第一步会把本仓库注册为一个 marketplace；第二步安装名为 `kiro-proxy-stable` 的插件；第三步重载让钩子和 skill 生效。
 
+注意两点：
+
+- **用完整 HTTPS 地址，不要用 `owner/repo` 简写**。简写会被解析成 `git@github.com:...`，如果本机没有配置 GitHub SSH 密钥，会报 `Permission denied (publickey)`。
+- **marketplace 名和插件名都是 `kiro-proxy-stable`**（来自 `marketplace.json`），跟仓库名 `kiro-proxy-stable-plugin` 不同，第二步不要跟着仓库名写成 `-plugin`。
+
 ### 方式二：命令行本地加载（只在当前会话生效）
 
 先把仓库克隆到本地，再启动 Claude Code 时指定插件目录：
 
 ```bash
-git clone https://github.com/qhyuTT/kiro-proxy-stable.git
-claude --plugin-dir /path/to/kiro-proxy-stable
+git clone https://github.com/qhyuTT/kiro-proxy-stable-plugin.git
+claude --plugin-dir /path/to/kiro-proxy-stable-plugin
 ```
 
 ### 依赖 / 环境要求
@@ -139,7 +144,7 @@ claude --plugin-dir /path/to/kiro-proxy-stable
 不依赖模型主观判断的方式：
 
 ```bash
-claude --debug --plugin-dir /path/to/kiro-proxy-stable 2>&1 | grep -i "SessionStart"
+claude --debug --plugin-dir /path/to/kiro-proxy-stable-plugin 2>&1 | grep -i "SessionStart"
 ```
 
 应能看到钩子触发并打印 `hookSpecificOutput` / `additionalContext`。
@@ -176,7 +181,8 @@ LICENSE
 
 ## Changelog
 
-- **1.1.0** — 去掉 `UserPromptSubmit` 注入（规则只在 `SessionStart` 通过 `additionalContext` 注入一次，节省每回合 token）；加上 `v1` 标记方便客观验证；规则要求无前置铺垫 + 独立调用并行 + resume 锚点；`kiro-proxy-worker` 通过 frontmatter `tools:` 拿到原生工具白名单。
+- **1.1.1** — 真正删掉 `UserPromptSubmit` 钩子（1.1.0 的 changelog 声称去掉了，实际 `hooks.json` 里还在，规则每回合都在重复注入）；修正 README 与 `plugin.json` 里指向不存在仓库 `kiro-proxy-stable` 的地址，安装命令改用完整 HTTPS 避免走 SSH。
+- **1.1.0** — 规则改为通过 `SessionStart` 的 `additionalContext` 注入；加上 `v1` 标记方便客观验证；规则要求无前置铺垫 + 独立调用并行 + resume 锚点；`kiro-proxy-worker` 通过 frontmatter `tools:` 拿到原生工具白名单。
 - **1.0.0** — 首次发布。
 
 ## License

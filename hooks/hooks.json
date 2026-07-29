@@ -12,18 +12,6 @@
         ]
       }
     ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/emit-rules.sh\" UserPromptSubmit",
-            "timeout": 5,
-            "statusMessage": "loading kiro-proxy rules"
-          }
-        ]
-      }
-    ],
     "SubagentStart": [
       {
         "hooks": [
