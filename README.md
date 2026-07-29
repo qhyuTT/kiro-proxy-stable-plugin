@@ -60,9 +60,19 @@ Claude Code 的 **`/goal`** 在同一条代理下更稳，因为它把工作切�
 
 ## 安装
 
-### 方式一：直接把 GitHub 地址发给 Claude Code（推荐）
+### 方式一：把仓库地址发给 Claude Code，让它自己装（推荐）
 
-在 Claude Code 里依次输入：
+在 Claude Code 里直接说：
+
+```text
+帮我安装这个 Claude Code 插件：https://github.com/qhyuTT/kiro-proxy-stable-plugin
+```
+
+它会自行完成注册 marketplace、安装插件、重载三步。装完让它确认一下：钩子数应该是 **2 个**（`SessionStart` + `SubagentStart`）。
+
+### 方式二：手动敲命令
+
+想自己控制每一步，在 Claude Code 里依次输入：
 
 ```text
 /plugin marketplace add https://github.com/qhyuTT/kiro-proxy-stable-plugin.git
@@ -77,7 +87,7 @@ Claude Code 的 **`/goal`** 在同一条代理下更稳，因为它把工作切�
 - **用完整 HTTPS 地址，不要用 `owner/repo` 简写**。简写会被解析成 `git@github.com:...`，如果本机没有配置 GitHub SSH 密钥，会报 `Permission denied (publickey)`。
 - **marketplace 名和插件名都是 `kiro-proxy-stable`**（来自 `marketplace.json`），跟仓库名 `kiro-proxy-stable-plugin` 不同，第二步不要跟着仓库名写成 `-plugin`。
 
-### 方式二：命令行本地加载（只在当前会话生效）
+### 方式三：命令行本地加载（只在当前会话生效）
 
 先把仓库克隆到本地，再启动 Claude Code 时指定插件目录：
 
@@ -101,6 +111,23 @@ claude --plugin-dir /path/to/kiro-proxy-stable-plugin
 - **MSYS2 / Cygwin**：同理，需保证启动 `claude` 时的终端能解析 `sh`。
 
 验证方法：任一终端里执行 `sh -c 'echo ok'`，能输出 `ok` 就说明钩子能跑。
+
+## 更新到新版本
+
+用方式一或方式二装的，在 Claude Code 里执行：
+
+```text
+/plugin marketplace update kiro-proxy-stable
+/reload-plugins
+```
+
+一条 `marketplace update` 就够了，不需要再 `/plugin install`。因为 `marketplace.json` 里插件的 `source` 是 `./`，插件本体就是 marketplace 仓库本身（本地位于 `~/.claude/plugins/marketplaces/kiro-proxy-stable/`），更新 marketplace 就等于拉取插件文件。
+
+`/reload-plugins` 之后可以顺手核对钩子数是否为 **2 个**，作为新版本已生效的客观信号。
+
+注意：上面那个目录是一份 git 克隆，`marketplace update` 底层是 fetch 并更新到远端。如果你直接改过该目录里的文件，更新可能因冲突失败或丢掉你的改动——想改配置请改自己仓库的副本，别改这份缓存。
+
+方式三（`--plugin-dir`）则是在你自己的克隆里 `git pull`，然后重启 `claude`。
 
 ## 不使用 Kiro 反代时
 
